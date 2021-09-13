@@ -1,4 +1,4 @@
-import React from 'react';
+import React , {useEffect, useState}from 'react';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
 import Button from '@material-ui/core/Button';
@@ -8,6 +8,8 @@ import InputLabel from '@material-ui/core/InputLabel';
 import MenuItem from '@material-ui/core/MenuItem';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import FormControl from '@material-ui/core/FormControl';
+import './App.scss';
+
 
 const validationSchema = yup.object({
   amount: yup
@@ -18,11 +20,36 @@ const validationSchema = yup.object({
     .required('Currency is required'),
 });
 
+
+
+
 const App = () => {
+
+  const [rates, setRates] = useState([]);
+  const [rate, setRate] = useState([]);
+  const [base, setBase] = useState('');
+
+  const getCurrencies = async () =>{
+    let response = await fetch('http://localhost:4000/currencies');
+    let data = await response.json();
+    // console.log("data", data);
+    // let base = Object.keys(data).at(data.base);
+    // console.log("base", base);
+    // setBase(base);
+    let result = Object.keys(data.rates).map((key) => [key, data.rates[key]]);
+    return result;
+  
+  
+  }
+
+  useEffect(()=>{
+    setRates(getCurrencies());
+  },[])
+
   const formik = useFormik({
     initialValues: {
       amount: 3343,
-      currency: 'ZAR',
+      currency: '',
     },
     validationSchema: validationSchema,
     onSubmit: (values) => {
@@ -30,8 +57,13 @@ const App = () => {
     },
   });
 
+
+  
+
+
+
   return (
-    <div>
+    <div className="App">
       <form onSubmit={formik.handleSubmit}>
         <TextField
           fullWidth
@@ -44,7 +76,7 @@ const App = () => {
           helperText={formik.touched.amount && formik.errors.amount}
         />
         <FormControl error={formik.errors.currency ? true : false} >
-          <InputLabel id="demo-simple-select-helper-label">Currency</InputLabel>
+          <InputLabel>Currency</InputLabel>
           <Select
             fullWidth
             id="currency"
@@ -52,15 +84,16 @@ const App = () => {
             label="currency"
             type="currency"
             value={formik.values.currency}
-            onChange={formik.handleChange}
+            onChange={e => setRate(e.target.value)}
             error={formik.touched.currency && Boolean(formik.errors.currency)}
           >
-            <MenuItem value="">
-              <i>None</i>
-            </MenuItem>
-            <MenuItem value={10}>Ten</MenuItem>
-            <MenuItem value={20}>Twenty</MenuItem>
-            <MenuItem value={30}>Thirty</MenuItem>
+          {
+              rates.rates && rates.map( item => (
+               <MenuItem value={item[0  ]}>{item[0]}</MenuItem>
+              ))
+                 
+        
+            }
           </Select>
           <FormHelperText>{formik.touched.currency && formik.errors.currency}</FormHelperText>
         </FormControl>
