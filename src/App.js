@@ -1,6 +1,6 @@
-import React from 'react';
-import { useFormik } from 'formik';
-import * as yup from 'yup';
+import React, { useEffect, useState } from 'react';
+import * as Yup from 'yup';
+import { Formik } from 'formik';
 import Button from '@material-ui/core/Button';
 import TextField from '@material-ui/core/TextField';
 import Select from '@material-ui/core/Select';
@@ -8,66 +8,105 @@ import InputLabel from '@material-ui/core/InputLabel';
 import MenuItem from '@material-ui/core/MenuItem';
 import FormHelperText from '@material-ui/core/FormHelperText';
 import FormControl from '@material-ui/core/FormControl';
+import { calcZar } from './calc';
 
-const validationSchema = yup.object({
-  amount: yup
-    .number('Amount must be a number')
-    .required('Amount is required'),
-  currency: yup
-    .string('Select currency')
-    .required('Currency is required'),
-});
+const converstionSchema = Yup.object().shape({
+  amount: Yup.number().required('Amount is required'),
+  currency: Yup.string().required('Currency is required')
+})
 
 const App = () => {
-  const formik = useFormik({
-    initialValues: {
-      amount: 3343,
-      currency: 'ZAR',
-    },
-    validationSchema: validationSchema,
-    onSubmit: (values) => {
-      alert(JSON.stringify(values, null, 2));
-    },
-  });
+
+  const [ratesList, setRates] = useState(0);
+  const [amount, setAmount] = useState('');
+  const [zar, setZar] = useState('');
+
+  const fetchMyApi = async () => {
+    try {
+      let response = await fetch('http://localhost:4000/currencies');
+      let res = await response.json();
+      let ratesArr = await Object.keys(res.rates).map((key) => [key, res.rates[key]]);
+      let currentZar = ratesArr.find(item => item[0] == 'ZAR')
+      setZar(currentZar[1])
+      setRates(ratesArr);
+    } catch (error) { throw error.message };
+  }
+
+  useEffect(() => {
+    fetchMyApi();
+  }, [])
 
   return (
-    <div>
-      <form onSubmit={formik.handleSubmit}>
-        <TextField
-          fullWidth
-          id="amount"
-          name="amount"
-          label="amount"
-          value={formik.values.amount}
-          onChange={formik.handleChange}
-          error={formik.touched.amount && Boolean(formik.errors.amount)}
-          helperText={formik.touched.amount && formik.errors.amount}
-        />
-        <FormControl error={formik.errors.currency ? true : false} >
-          <InputLabel id="demo-simple-select-helper-label">Currency</InputLabel>
-          <Select
-            fullWidth
-            id="currency"
-            name="currency"
-            label="currency"
-            type="currency"
-            value={formik.values.currency}
-            onChange={formik.handleChange}
-            error={formik.touched.currency && Boolean(formik.errors.currency)}
-          >
-            <MenuItem value="">
-              <i>None</i>
-            </MenuItem>
-            <MenuItem value={10}>Ten</MenuItem>
-            <MenuItem value={20}>Twenty</MenuItem>
-            <MenuItem value={30}>Thirty</MenuItem>
-          </Select>
-          <FormHelperText>{formik.touched.currency && formik.errors.currency}</FormHelperText>
-        </FormControl>
-        <Button color="primary" variant="contained" fullWidth type="submit">
-          Submit
-        </Button>
-      </form>
+    <div className="App">
+      <Formik
+        initialValues={{
+          amount: '',
+          currency: ''
+        }}
+        validationSchema={converstionSchema}
+        onSubmit={(values, { setSubmitting }) => {
+          setTimeout(() => {
+            setSubmitting(false);
+            let zarTotal = calcZar(values.currency, parseInt(values.amount), zar)
+            setAmount(zarTotal);
+          }, 400);
+        }}
+      >
+        {({
+          values,
+          errors,
+          touched,
+          handleChange,
+          handleSubmit,
+        }) => (
+          <>
+            <div className="App--zar">R{amount ? amount : 0.00}</div>
+            <form onSubmit={handleSubmit}>
+              <TextField
+                fullWidth
+                id="amount"
+                name="amount"
+                label="Enter amount"
+                value={values.amount}
+                onChange={handleChange}
+                error={errors.amount && Boolean(errors.amount)}
+                helperText={touched.amount && errors.amount}
+              />
+              <FormControl error={errors.currency ? true : false} fullWidth>
+                <InputLabel
+                  style={{ disableAnimation: false }}
+                  disableAnimation={false}
+                >
+                  Select currency
+                </InputLabel>                
+                <Select
+                  fullWidth
+                  id="currency"
+                  name="currency"
+                  label="currency"
+                  type="currency"
+                  onChange={handleChange}
+                  error={Boolean(errors.currency)}
+                  helperText={touched.currency && Boolean(errors.currency)}
+                >
+
+                  <MenuItem selected disabled value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {ratesList.length > 0 && ratesList.map(key => (
+                    <MenuItem key={key} value={key[1]}>{key[0]}</MenuItem>))}
+                </Select>
+                <FormHelperText>{touched.currency && errors.currency}</FormHelperText>
+              </FormControl>
+              <Button color="primary" variant="contained" type="submit">
+                Convert
+              </Button>
+            </form>
+          </>
+
+        )}
+      </Formik>
+
     </div>
   );
 };
